@@ -21,14 +21,6 @@ float pH;
 float turbidity;
 float tds;
 
-void initArduinoCloud(){
-
-  ArduinoCloud.setBoardId(DEVICE_LOGIN_NAME);
-  ArduinoCloud.setSecretDeviceKey(DEVICE_KEY);
-  ArduinoCloud.addProperty(motion, READ, ON_CHANGE, NULL);
-
-}
-
 void initPins(){
 
   pinMode(TEMP, INPUT);
@@ -40,6 +32,18 @@ void initPins(){
   pinMode(PH_ERROR, OUTPUT);
   pinMode(TURB_ERROR, OUTPUT);
   pinMode(TDS_ERROR, OUTPUT);
+
+}
+
+void initArduinoCloud(){
+
+  ArduinoCloud.setBoardId(DEVICE_LOGIN_NAME);
+  ArduinoCloud.setSecretDeviceKey(DEVICE_KEY);
+  
+  ArduinoCloud.addProperty(pH, READ, 30 * SECONDS, NULL);
+  ArduinoCloud.addProperty(tds, READ, 30 * SECONDS, NULL);
+  ArduinoCloud.addProperty(temperature, READ, 30 * SECONDS, NULL);
+  ArduinoCloud.addProperty(turbidity, READ, 30 * SECONDS, NULL);
 
 }
 
