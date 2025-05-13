@@ -30,6 +30,7 @@ void initArduinoCloud(){
 }
 
 void initPins(){
+
   pinMode(TEMP, INPUT);
   pinMode(PH, INPUT);
   pinMode(TURBIDITY, INPUT);
@@ -39,12 +40,16 @@ void initPins(){
   pinMode(PH_ERROR, OUTPUT);
   pinMode(TURB_ERROR, OUTPUT);
   pinMode(TDS_ERROR, OUTPUT);
+
 }
+
 
 void setup() {
 
   Serial.begin(115200);
   delay(1500);
+
+  initPins();
   
   initArduinoCloud();
 
@@ -54,10 +59,49 @@ void setup() {
   setDebugMessageLevel(2);
   ArduinoCloud.printDebugInfo();
 
+  
+
 }
 
 void loop() {
-  
+
   ArduinoCloud.update();
 
+  // Using boolean return since the variables are set at in the read() functions
+  // True means read was successful so no warning light, False does the opposite
+  // May want to revisit this logic to see about CPU overhead so we draw less power
+
+  if (!readTemp) {
+    digitalWrite(TEMP_ERROR, HIGH);
+  }
+  if (!readPH) {
+    digitalWrite(PH_ERROR, HIGH);
+  }
+  if (!readTurbidity) {
+    digitalWrite(TURB_ERROR, HIGH);
+  }
+
+  delay(3000) // we may want to look into delay methods that are less power consuming since this just cycles the CPU
+
 }
+
+
+
+bool readTemp() {
+  return -1;
+}
+
+
+bool readPH() {
+  return -1;
+}
+
+bool readTurbidity() {
+  return -1;
+}
+
+bool readTDS(){
+  return -1;
+}
+
+
