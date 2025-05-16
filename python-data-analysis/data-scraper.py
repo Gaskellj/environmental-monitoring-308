@@ -50,7 +50,7 @@ for prop in selected:
         id=THING_ID,
         pid=prop["id"],
         interval=1,
-        from_=past,    # note: correct param name is from_
+        var_from=past,    # note: correct param name is from_
         to=now,
         desc=True
     )
