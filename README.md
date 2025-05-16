@@ -11,3 +11,6 @@ Sensors included within this project are:
 
 ## Data analysis and visualization
 
+Arduino cloud offers a great visualization dashboard but limited opportunity to analyze and transform data. As such, we have chosen to use python given the number of available packages and prior data science work in the language. Arduino also offers an API which allows us to retrieve historical data from the cloud.
+
+Data analysis can be found [here](python-data-analysis)
