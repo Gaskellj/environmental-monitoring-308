@@ -4,8 +4,8 @@
 
 #define TEMP 25
 #define PH 26
-#define TURBIDITY 27
-#define TDS 14
+#define TURBIDITY 32
+#define TDS 33
 
 #define TEMP_ERROR 21
 #define PH_ERROR 19
@@ -17,6 +17,8 @@ const char* SSID     = "MyResNet-2G"; // SSID for ResNet 2GHz network
 const char* PASSWORD = "Goldenrod-Ghana-65!"; // needs a password for the Union 2G network
 const char* DEVICE_KEY = "rd7oYlVimFoGAJADPzt7XD65T"; // not-so-secret key for my arduino
 
+WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASSWORD);
+
 float temperature;
 float pH;
 float turbidity;
@@ -24,7 +26,10 @@ float tds;
 
 OneWire ds(TEMP);
 
-void initPins(){
+void setup() {
+
+  Serial.begin(115200);
+  delay(1500);
 
   pinMode(TEMP, INPUT);
   pinMode(PH, INPUT);
@@ -35,11 +40,7 @@ void initPins(){
   pinMode(PH_ERROR, OUTPUT);
   pinMode(TURB_ERROR, OUTPUT);
   pinMode(TDS_ERROR, OUTPUT);
-
-}
-
-void initArduinoCloud(){
-
+  
   ArduinoCloud.setBoardId(DEVICE_LOGIN_NAME);
   ArduinoCloud.setSecretDeviceKey(DEVICE_KEY);
 
@@ -48,23 +49,9 @@ void initArduinoCloud(){
   ArduinoCloud.addProperty(temperature, READ, 30 * SECONDS, NULL);
   ArduinoCloud.addProperty(turbidity, READ, 30 * SECONDS, NULL);
 
-  WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASSWORD);
-
   ArduinoCloud.begin(ArduinoIoTPreferredConnection);
   setDebugMessageLevel(2);
   ArduinoCloud.printDebugInfo();
-
-}
-
-
-void setup() {
-
-  Serial.begin(115200);
-  delay(1500);
-
-  initPins();
-  
-  initArduinoCloud();
 
   
 
@@ -78,19 +65,22 @@ void loop() {
   // True means read was successful so no warning light, False does the opposite
   // May want to revisit this logic to see about CPU overhead so we draw less power
 
-  if (!readTemp) {
+  if (!readTemp()) {
     digitalWrite(TEMP_ERROR, HIGH);
     Serial.println("Temp Failure!");
   }
-  if (!readPH) {
+  if (!readPH()) {
     digitalWrite(PH_ERROR, HIGH);
+    Serial.println("pH Failure!");
   }
-  if (!readTurbidity) {
+  if (!readTurbidity()) {
     digitalWrite(TURB_ERROR, HIGH);
+    Serial.println("Turbidity Failure!");
   }
-  if (!readTDS) {
+  if (!readTDS()) {
     digitalWrite(TDS_ERROR, HIGH);
-  }
+    Serial.println("TDS Failure!");
+   }
 
   delay(3000); // we may want to look into delay methods that are less power consuming since this just cycles the CPU
 
@@ -105,8 +95,7 @@ bool readTemp() {
   byte addr[8];
 
   if ( !ds.search(addr)) {
-      //no more sensors on chain, reset search
-      Serial.println("no more sensors on chain, reset search!");
+      Serial.println("Temp sensor not located on Onewire chain!");
       ds.reset_search();
       return false;
   }
@@ -144,24 +133,34 @@ bool readTemp() {
 
   temperature = TemperatureSum;
 
-  Serial.println(temperature);
   return true;
 }
 
 
 bool readPH() {
   pH = 0;
-  return -1;
+  return false;
 }
 
 bool readTurbidity() {
-  turbidity = 0;
-  return -1;
+
+  uint16_t analog = analogRead(TURBIDITY);
+
+  if (analog == 0) return false;
+
+  float volts = analog * (4.0f / 4095.0f);
+
+  turbidity = (volts - 4.0) / (-0.0008); // Convert the analog voltage to turbidity: https://iopscience.iop.org/article/10.1088/1742-6596/1280/2/022064/pdf
+
+  return true;
 }
 
 bool readTDS(){
-  tds = 0;
-  return -1;
+  int td = analogRead(TDS);
+
+  tds = td;
+
+  return true;
 }
 
 
