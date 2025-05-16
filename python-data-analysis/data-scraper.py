@@ -3,6 +3,7 @@ from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 from iot_api_client import ApiClient, Configuration
 from iot_api_client.api.properties_v2_api import PropertiesV2Api
+import pandas as pd
 
 API_CLIENT_ID     = "HbFHAQZDuYdVbrOoYwDHUG8Nl18nOQRF"
 # shouldn't be public but not too concerned given project scope
@@ -31,8 +32,8 @@ target = {"pH", "temperature", "turbidity", "tds"}
 selected = [p for p in properties if p["name"] in target] # selects only properties in the list, can be expanded
 
 # time window for data series, currently set to t-7 days
-end   = datetime.now(timezone.utc).isoformat()
-start = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+now   = datetime.now(timezone.utc).isoformat()
+past = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
 
 # properties client to retrieve property data
 cfg       = Configuration(host="https://api2.arduino.cc")
@@ -41,14 +42,30 @@ api_client = ApiClient(cfg)
 prop_api    = PropertiesV2Api(api_client)
 
 # retrieve time series data for each prop in properties
+series_dict = {}
+
 for prop in selected:
+    # fetch the timeseries
     resp = prop_api.properties_v2_timeseries(
         id=THING_ID,
         pid=prop["id"],
-        var_from=start,
-        to=end
+        interval=1,
+        from_=past,    # note: correct param name is from_
+        to=now,
+        desc=True
     )
-    values = getattr(resp, "values", [])
-    print(f"{prop['name']} ({len(values)} points):")
-    for point in values:
-        print(f"  • {point.timestamp} → {point.value}")
+    # extract times & values
+    times  = [dp.time for dp in resp.data]
+    values = [dp.value for dp in resp.data]
+
+    # build a Series, name it by the property name
+    series_dict[prop["name"]] = pd.Series(data=values, index=times, name=prop["name"])
+
+# combine into one DataFrame, aligning on timestamp
+df = pd.DataFrame(series_dict)
+
+# tidy up
+df.index.name = "timestamp"
+df.sort_index(inplace=True)
+
+print(df)
