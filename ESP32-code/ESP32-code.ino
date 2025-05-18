@@ -156,9 +156,19 @@ bool readTurbidity() {
 }
 
 bool readTDS(){
-  int td = analogRead(TDS);
+  int analog = analogRead(TDS);
 
-  tds = td;
+  float volts = analog * (2.3f / 4095.0f);
+
+  float compensationCoefficient = 1.0 + 0.02 * (temperature - 25.0);
+  float compensationVolatge = volts / compensationCoefficient;
+
+  tds = (133.42 * compensationVolatge * compensationVolatge * compensationVolatge - 255.86 * compensationVolatge * compensationVolatge + 857.39 * compensationVolatge) * 0.5;
+  // http://www.cqrobot.wiki/index.php/TDS_(Total_Dissolved_Solids)_Meter_Sensor_SKU:_CQRSENTDS01
+
+  Serial.print("TDS----Value:");
+  Serial.print(tds, 0);
+  Serial.println("ppm");
 
   return true;
 }
