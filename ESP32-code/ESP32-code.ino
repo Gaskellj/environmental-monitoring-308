@@ -79,17 +79,17 @@ void loop() {
   // every READ_INTERVAL ms, refresh all four sensors in the background
   if (now - lastReadMillis >= READ_INTERVAL) {
     lastReadMillis = now;
-    temp_error  = !readTemp();
-    pH_error    = !readPH();
-    turb_error  = !readTurbidity();
-    tds_error   = !readTDS();
+    temp_error  = readTemp(); // needs to be true if reading successful, false if unsuccessful due to dashboard LEDs
+    pH_error    = readPH();
+    turb_error  = readTurbidity();
+    tds_error   = readTDS();
   }
 
    if (Serial.available() > 0) {
     char cmd = Serial.read();
     switch (cmd) {
       case '1':
-        if (temp_error) {
+        if (!temp_error) {
           Serial.println("Temp read failed");
         } else {
           Serial.print("Temp----Value: ");
@@ -99,7 +99,7 @@ void loop() {
         break;
 
       case '2':
-        if (pH_error) {
+        if (!pH_error) {
           Serial.println("pH read failed");
         } else {
           Serial.print("pH----Value: ");
@@ -108,7 +108,7 @@ void loop() {
         break;
 
       case '3':
-        if (turb_error) {
+        if (!turb_error) {
           Serial.println("Turbidity read failed");
         } else {
           Serial.print("Turbidity----Value: ");
@@ -118,7 +118,7 @@ void loop() {
         break;
 
       case '4':
-        if (tds_error) {
+        if (!tds_error) {
           Serial.println("TDS read failed");
         } else {
           Serial.print("TDS----Value: ");
@@ -144,18 +144,14 @@ bool readTemp() {
   byte addr[8];
 
   if ( !ds.search(addr)) {
-      Serial.println("Temp sensor not located on Onewire chain!");
-      ds.reset_search();
       return false;
   }
 
   if ( OneWire::crc8( addr, 7) != addr[7]) {
-      Serial.println("CRC is not valid!");
       return false;
   }
 
   if ( addr[0] != 0x10 && addr[0] != 0x28) {
-      Serial.print("Device is not recognized");
       return false;
   }
 
@@ -195,7 +191,7 @@ bool readTurbidity() {
 
   uint16_t analog = analogRead(TURBIDITY);
 
-  if (analog == 0) return false;
+  if (analog == 0) return true;
 
   float volts = analog * (4.0f / 4095.0f);
 
