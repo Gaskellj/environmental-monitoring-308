@@ -7,15 +7,13 @@
 #define TURBIDITY 32
 #define TDS 33
 
-#define TEMP_ERROR 21
-#define PH_ERROR 19
-#define TURB_ERROR 18
-#define TDS_ERROR 5
-
 const char* DEVICE_LOGIN_NAME  = "44f23f80-3e5e-43a7-b951-9fc88ba0c229"; // MAC address of arduino
 const char* SSID     = "MyResNet-2G"; // SSID for ResNet 2GHz network
 const char* PASSWORD = "Goldenrod-Ghana-65!"; // needs a password for the Union 2G network
 const char* DEVICE_KEY = "rd7oYlVimFoGAJADPzt7XD65T"; // not-so-secret key for my arduino
+
+const unsigned long READ_INTERVAL = 3000;
+unsigned long lastReadMillis = 0;
 
 WiFiConnectionHandler ArduinoIoTPreferredConnection(SSID, PASSWORD);
 
@@ -24,22 +22,22 @@ float pH;
 float turbidity;
 float tds;
 
+bool temp_error;
+bool pH_error;
+bool turb_error;
+bool tds_error;
+
 OneWire ds(TEMP);
 
 void setup() {
 
   Serial.begin(115200);
-  delay(1500);
+  delay(5000);
 
   pinMode(TEMP, INPUT);
   pinMode(PH, INPUT);
   pinMode(TURBIDITY, INPUT);
   pinMode(TDS, INPUT);
-
-  pinMode(TEMP_ERROR, OUTPUT);
-  pinMode(PH_ERROR, OUTPUT);
-  pinMode(TURB_ERROR, OUTPUT);
-  pinMode(TDS_ERROR, OUTPUT);
   
   ArduinoCloud.setBoardId(DEVICE_LOGIN_NAME);
   ArduinoCloud.setSecretDeviceKey(DEVICE_KEY);
@@ -49,11 +47,23 @@ void setup() {
   ArduinoCloud.addProperty(temperature, READ, 30 * SECONDS, NULL);
   ArduinoCloud.addProperty(turbidity, READ, 30 * SECONDS, NULL);
 
+  ArduinoCloud.addProperty(pH_error, READ, ON_CHANGE, NULL);
+  ArduinoCloud.addProperty(tds_error, READ, ON_CHANGE, NULL);
+  ArduinoCloud.addProperty(temp_error, READ, ON_CHANGE, NULL);
+  ArduinoCloud.addProperty(turb_error, READ, ON_CHANGE, NULL);
+
   ArduinoCloud.begin(ArduinoIoTPreferredConnection);
   setDebugMessageLevel(2);
   ArduinoCloud.printDebugInfo();
 
-  
+  Serial.println();
+  Serial.println("=== Sensor Menu ===");
+  Serial.println("Press 1 → Temperature");
+  Serial.println("Press 2 → pH");
+  Serial.println("Press 3 → Turbidity");
+  Serial.println("Press 4 → TDS");
+  Serial.println("===================");
+  Serial.println();  
 
 }
 
@@ -65,24 +75,63 @@ void loop() {
   // True means read was successful so no warning light, False does the opposite
   // May want to revisit this logic to see about CPU overhead so we draw less power
 
-  if (!readTemp()) {
-    digitalWrite(TEMP_ERROR, HIGH);
-    Serial.println("Temp Failure!");
+  unsigned long now = millis();
+  // every READ_INTERVAL ms, refresh all four sensors in the background
+  if (now - lastReadMillis >= READ_INTERVAL) {
+    lastReadMillis = now;
+    temp_error  = !readTemp();
+    pH_error    = !readPH();
+    turb_error  = !readTurbidity();
+    tds_error   = !readTDS();
   }
-  if (!readPH()) {
-    digitalWrite(PH_ERROR, HIGH);
-    Serial.println("pH Failure!");
-  }
-  if (!readTurbidity()) {
-    digitalWrite(TURB_ERROR, HIGH);
-    Serial.println("Turbidity Failure!");
-  }
-  if (!readTDS()) {
-    digitalWrite(TDS_ERROR, HIGH);
-    Serial.println("TDS Failure!");
-   }
 
-  delay(3000); // we may want to look into delay methods that are less power consuming since this just cycles the CPU
+   if (Serial.available() > 0) {
+    char cmd = Serial.read();
+    switch (cmd) {
+      case '1':
+        if (temp_error) {
+          Serial.println("Temp read failed");
+        } else {
+          Serial.print("Temp----Value: ");
+          Serial.print(temperature, 0);
+          Serial.println("°C");
+        }
+        break;
+
+      case '2':
+        if (pH_error) {
+          Serial.println("pH read failed");
+        } else {
+          Serial.print("pH----Value: ");
+          Serial.println(pH, 0);
+        }
+        break;
+
+      case '3':
+        if (turb_error) {
+          Serial.println("Turbidity read failed");
+        } else {
+          Serial.print("Turbidity----Value: ");
+          Serial.print(turbidity, 0);
+          Serial.println("NTU");
+        }
+        break;
+
+      case '4':
+        if (tds_error) {
+          Serial.println("TDS read failed");
+        } else {
+          Serial.print("TDS----Value: ");
+          Serial.print(tds, 0);
+          Serial.println("ppm");
+        }
+        break;
+
+      default:
+        // ignore other characters
+        break;
+    }
+   }
 
 }
 
@@ -165,10 +214,6 @@ bool readTDS(){
 
   tds = (133.42 * compensationVolatge * compensationVolatge * compensationVolatge - 255.86 * compensationVolatge * compensationVolatge + 857.39 * compensationVolatge) * 0.5;
   // http://www.cqrobot.wiki/index.php/TDS_(Total_Dissolved_Solids)_Meter_Sensor_SKU:_CQRSENTDS01
-
-  Serial.print("TDS----Value:");
-  Serial.print(tds, 0);
-  Serial.println("ppm");
 
   return true;
 }
