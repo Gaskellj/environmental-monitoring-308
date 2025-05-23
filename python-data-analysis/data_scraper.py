@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from datetime import datetime, timezone, timedelta
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
@@ -7,6 +6,8 @@ from iot_api_client.api.properties_v2_api import PropertiesV2Api
 import pandas as pd
 import os
 
+# Change these to your own values
+# They can be found on arduino cloud, TOKEN_URL stays the same
 API_CLIENT_ID     = "HbFHAQZDuYdVbrOoYwDHUG8Nl18nOQRF"
 API_CLIENT_SECRET = "ZZIFNkc3CPRJ6LKvnJPZDKtIOIMzAyF6rWTaDJcRCazIAevkRMdy5jMGjr5sHIt0"
 THING_ID          = "2964b461-851a-45fd-a2e4-93aea1ce8d0f"
@@ -41,7 +42,7 @@ def get_arduino_data() -> pd.DataFrame:
     props_resp = oauth.get(f"https://api2.arduino.cc/iot/v1/things/{THING_ID}/properties")
     props_resp.raise_for_status()
     properties = props_resp.json()
-    target     = {"pH", "temperature", "turbidity", "tds"}
+    target     = {"pH", "temperature", "turbidity", "tds"} # put your target variables in here!
     selected   = [p for p in properties if p["name"] in target]
 
     # 3. DETERMINE TIME WINDOW
@@ -109,7 +110,6 @@ def get_arduino_data() -> pd.DataFrame:
 def save_data(df: pd.DataFrame):
     os.makedirs(DATA_DIR, exist_ok=True)
     df.to_csv(DATA_FILE, index=True)
-    print(f"Saved data to {DATA_FILE}")
 
 if __name__ == "__main__":
     df = get_arduino_data()
