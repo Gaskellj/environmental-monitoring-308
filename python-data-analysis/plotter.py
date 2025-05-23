@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -15,7 +14,7 @@ data_file_dir = os.path.join(os_dir, "data")
 DATA_FILE = os.path.join(data_file_dir, "arduino_data.csv")
 
 # Update intervals
-UPDATE_INTERVAL_MS = 5000  # plot refresh (ms)
+UPDATE_INTERVAL_MS = 30000  # plot refresh (ms)
 SCRAPE_INTERVAL_SEC = UPDATE_INTERVAL_MS / 1000  # scraper sleep (s)
 
 # Default time window (1 day)
