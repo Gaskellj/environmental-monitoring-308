@@ -3,7 +3,7 @@
 #include <OneWire.h>
 
 #define TEMP 25
-#define PH 26
+#define PH 35
 #define TURBIDITY 32
 #define TDS 33
 
@@ -183,8 +183,14 @@ bool readTemp() {
 
 
 bool readPH() {
-  pH = 0;
-  return false;
+
+  float pHValue = analogRead(PH);
+
+  Serial.print("    pH value: ");
+  Serial.println(pHValue,2);
+
+  pH = pHValue;
+  return true;
 }
 
 bool readTurbidity() {
