@@ -22,10 +22,10 @@ float pH;
 float turbidity;
 float tds;
 
-bool temp_error;
-bool pH_error;
-bool turb_error;
-bool tds_error;
+bool temp_success;
+bool pH_success;
+bool turb_success;
+bool tds_success;
 
 OneWire ds(TEMP);
 
@@ -77,19 +77,19 @@ void loop() {
 
   unsigned long now = millis();
   // every READ_INTERVAL ms, refresh all four sensors in the background
-  if (now - lastReadMillis >= READ_INTERVAL) {
+  if (now - lastReadMillis >= READ_INTERVAL) { // allows updates to arduino cloud without necessitating sensor reads
     lastReadMillis = now;
-    temp_error  = readTemp(); // needs to be true if reading successful, false if unsuccessful due to dashboard LEDs
-    pH_error    = readPH();
-    turb_error  = readTurbidity();
-    tds_error   = readTDS();
+    temp_success  = readTemp(); // needs to be true if reading successful, false if unsuccessful due to dashboard LEDs
+    pH_success    = readPH();
+    turb_success  = readTurbidity();
+    tds_success   = readTDS();
   }
 
    if (Serial.available() > 0) {
     char cmd = Serial.read();
     switch (cmd) {
       case '1':
-        if (!temp_error) {
+        if (!temp_success) {
           Serial.println("Temp read failed");
         } else {
           Serial.print("Temp----Value: ");
@@ -99,7 +99,7 @@ void loop() {
         break;
 
       case '2':
-        if (!pH_error) {
+        if (!pH_success) {
           Serial.println("pH read failed");
         } else {
           Serial.print("pH----Value: ");
@@ -108,7 +108,7 @@ void loop() {
         break;
 
       case '3':
-        if (!turb_error) {
+        if (!turb_success) {
           Serial.println("Turbidity read failed");
         } else {
           Serial.print("Turbidity----Value: ");
@@ -118,7 +118,7 @@ void loop() {
         break;
 
       case '4':
-        if (!tds_error) {
+        if (!tds_success) {
           Serial.println("TDS read failed");
         } else {
           Serial.print("TDS----Value: ");
@@ -184,24 +184,34 @@ bool readTemp() {
 
 bool readPH() {
 
-  float pHValue = analogRead(PH);
+  // Calibration parameters
+  float offset = 16.3; // Calibration curve offset
+  float slope = 8.3312; // Calibration curve slope
 
-  Serial.print("    pH value: ");
-  Serial.println(pHValue,2);
+  float rawVoltage = analogRead(PH) * 5.0 / 4096.0; // Adjusted to 4096.0 for ESP32
 
-  pH = pHValue;
-  return true;
+  // Convert raw voltage to pH using calibration parameters
+  float val = (rawVoltage * slope) - offset;
+
+  if (val < 5 || val > 10) {
+    return false;
+  } else {
+    pH = val;
+    return true;
+  }
+
 }
 
 bool readTurbidity() {
 
   uint16_t analog = analogRead(TURBIDITY);
 
-  if (analog == 0) return true;
+  if (analog == 0) return false;
 
   float volts = analog * (4.0f / 4095.0f);
 
-  turbidity = (volts - 4.0) / (-0.0008); // Convert the analog voltage to turbidity: https://iopscience.iop.org/article/10.1088/1742-6596/1280/2/022064/pdf
+  turbidity = (volts - 4.0) / (-0.0008);
+  // Convert the analog voltage to turbidity: https://iopscience.iop.org/article/10.1088/1742-6596/1280/2/022064/pdf
 
   return true;
 }
