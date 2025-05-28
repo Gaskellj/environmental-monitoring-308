@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 
@@ -13,8 +14,11 @@ def load_data(csv_path: Path) -> pd.DataFrame:
 
 
 def preprocess(df: pd.DataFrame) -> pd.DataFrame:
-    """Basic cleaning: forward-fill missing values then drop any remaining NaNs."""
-    return df.ffill().dropna()
+    """Log-transform turbidity, forward-fill missing values, then drop any remaining NaNs."""
+    df = df.copy()
+    df['turbidity_value'] = np.log1p(df['turbidity_value'])
+    df = df.ffill().dropna()
+    return df
 
 
 def train_model(X, y):
@@ -32,23 +36,38 @@ def evaluate_train(model, X_train, y_train):
     print(f"Train set — MAE: {mae:.4f}, MSE: {mse:.4f}")
 
 
-def predict_and_plot(model, X, index, output_path=None):
-    """Predict DO and plot predicted values over time."""
-    preds = model.predict(X)
-    plt.figure(figsize=(12, 6))
-    plt.plot(index, preds, marker='o', linestyle='--', label='Predicted DO')
-    plt.xlabel('Timestamp')
-    plt.ylabel('Predicted Dissolved Oxygen')
-    plt.title('Predicted Dissolved Oxygen over Time')
-    plt.legend()
-    plt.grid(True)
+def plot_variables_and_predictions(df: pd.DataFrame, preds: np.ndarray, title: str):
+    """Plot turbidity, temperature, pH, and predicted DO in subplots."""
+    times = df.index
+    fig, axes = plt.subplots(4, 1, figsize=(12, 16), sharex=True)
+
+    # Log-Transformed Turbidity
+    axes[0].plot(times, df['turbidity_value'])
+    axes[0].set_ylabel('Log Turbidity')
+    axes[0].set_title('Log-Transformed Turbidity over Time')
+    axes[0].grid(True)
+
+    # Temperature
+    axes[1].plot(times, df['temp_value'])
+    axes[1].set_ylabel('Temperature')
+    axes[1].set_title('Temperature over Time')
+    axes[1].grid(True)
+
+    # pH
+    axes[2].plot(times, df['pH_value'])
+    axes[2].set_ylabel('pH')
+    axes[2].set_title('pH over Time')
+    axes[2].grid(True)
+
+    # Predicted DO
+    axes[3].plot(times, preds, linestyle='--', marker='o', label='Predicted DO')
+    axes[3].set_ylabel('Dissolved Oxygen')
+    axes[3].set_title(title)
+    axes[3].legend()
+    axes[3].grid(True)
+
     plt.tight_layout()
     plt.show()
-
-    if output_path:
-        out_df = pd.DataFrame({'predicted_dissolved_oxygen': preds}, index=index)
-        out_df.to_csv(output_path)
-        print(f"Saved predictions to {output_path}")
 
 
 def main():
@@ -75,13 +94,17 @@ def main():
     df_test = preprocess(df_test)
     X_test = df_test[feature_cols]
 
-    # Predict and plot
-    predict_and_plot(
-        model,
-        X_test,
-        df_test.index,
-        output_path=data_dir / "arduino_predictions.csv"
-    )
+    # Predict
+    preds = model.predict(X_test)
+
+    # Plot all variables and predictions
+    plot_variables_and_predictions(df_test, preds, 'Predicted Dissolved Oxygen over Time')
+
+    # Save predictions
+    out_df = df_test.copy()
+    out_df['predicted_dissolved_oxygen_value'] = preds
+    out_df.to_csv(data_dir / "arduino_predictions.csv")
+    print(f"Saved predictions to {data_dir / 'arduino_predictions.csv'}")
 
 if __name__ == "__main__":
     main()
